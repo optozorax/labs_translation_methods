@@ -32,6 +32,8 @@ struct Token
 	}
 };
 
+std::ostream& operator<<(std::ostream& out, const Token& t);
+
 enum Type
 {
 	TYPE_INT, 
@@ -70,70 +72,19 @@ struct Structure
 class Tables
 {
 public:
-	Tables() : 
-		m_keywords(100),
-		m_delimiters(100), 
-		m_operations(100), 
-		m_identifiers(500), 
-		m_constants(500), 
-		m_structures(500) {
-		{
-			std::vector<string> add = {"int", "float", "struct"};
-			for (auto& i : add)
-				m_keywords.add(i, {});
-		}
+	Tables();
 
-		{
-			std::vector<string> add = {" ", ";", "\n", "\t", "{", "}"};
-			for (auto& i : add)
-				m_delimiters.add(i, {});
-		}
+	// ”даление из таблицы идентификаторов нужно потому что на этапе лексического анализа невозможно отличить структуры от имен идентификаторов. » все имена, даже имена структур будут заноситьс€ в таблицу идентификаторов
+	void deleteFromIdentifiers(const Token& token); 
 
-		{
-			std::vector<string> add = {"=", "+", "-", "*", "==", "!=", "<", ">"};
-			for (auto& i : add)
-				m_operations.add(i, {});
-		}
-	}
-
-	Token find(const std::string& str) const {
-		{ auto token = m_keywords.find(str); if (token) return {TABLE_KEYWORDS, token}; }
-		{ auto token = m_delimiters.find(str); if (token) return {TABLE_DELIMITERS, token}; }
-		{ auto token = m_operations.find(str); if (token) return {TABLE_OPERATIONS, token}; }
-		{ auto token = m_identifiers.find(str); if (token) return {TABLE_IDENTIFIERS, token}; }
-		{ auto token = m_constants.find(str); if (token) return {TABLE_CONSTANTS, token}; }
-		{ auto token = m_structures.find(str); if (token) return {TABLE_STRUCTURES, token}; }
-
-		return {TABLE_NULL, hash_table_pos::getNullPos()};
-	}
-
-	void add(const std::string& str, const TableType& type) {
-		switch (type) {
-			case TABLE_IDENTIFIERS: m_identifiers.add(str, {}); break;
-			case TABLE_CONSTANTS: m_constants.add(str, {}); break;
-			case TABLE_STRUCTURES: m_structures.add(str, {}); break;
-		}
-	}
+	Token find(const std::string& str) const;
+	Token add(const std::string& str, const TableType& type);
+	std::string getStr(const Token& token) const;
 
 	template<class T>
-	T& get(const Token& token) {
-		if constexpr (std::is_same<T, Identifier>::value)
-			return m_identifiers[token.pos];
-		if constexpr (std::is_same<T, Constant>::value)
-			return m_constants[token.pos];
-		if constexpr (std::is_same<T, Structure>::value)
-			return m_structures[token.pos];
-	}
-
+	T& get(const Token& token);
 	template<class T>
-	const T& get(const Token& token) const {
-		if constexpr (std::is_same<T, Identifier>::value)
-			return m_identifiers[token.pos];
-		if constexpr (std::is_same<T, Constant>::value)
-			return m_constants[token.pos];
-		if constexpr (std::is_same<T, Structure>::value)
-			return m_structures[token.pos];
-	}
+	const T& get(const Token& token) const;
 private:
 	struct void_struct {};
 
@@ -145,3 +96,29 @@ private:
 	hash_table<Constant>   m_constants;
 	hash_table<Structure>  m_structures;
 };
+
+//=============================================================================
+//=============================================================================
+//=============================================================================
+
+//-----------------------------------------------------------------------------
+template<class T>
+T& Tables::get(const Token& token) {
+	if constexpr (std::is_same<T, Identifier>::value)
+		return m_identifiers[token.pos];
+	if constexpr (std::is_same<T, Constant>::value)
+		return m_constants[token.pos];
+	if constexpr (std::is_same<T, Structure>::value)
+		return m_structures[token.pos];
+}
+
+//-----------------------------------------------------------------------------
+template<class T>
+const T& Tables::get(const Token& token) const {
+	if constexpr (std::is_same<T, Identifier>::value)
+		return m_identifiers[token.pos];
+	if constexpr (std::is_same<T, Constant>::value)
+		return m_constants[token.pos];
+	if constexpr (std::is_same<T, Structure>::value)
+		return m_structures[token.pos];
+}
