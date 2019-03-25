@@ -21,6 +21,7 @@ struct hash_table_pos
 	size_t line;
 	size_t pos;
 
+	// Возвращает true, если позиция действительная, и false если такой позиции не существует
 	operator bool() const {
 		return !(line == std::numeric_limits<size_t>::max() && pos == line);
 	}
@@ -61,8 +62,12 @@ public:
 		return hash_table_pos::getNullPos();
 	}
 
+	void erase(const hash_table_pos& pos) {
+		m_table[pos.line].erase(std::next(m_table[pos.line].begin(), pos.pos));
+	}
+
 	std::string str(const hash_table_pos& pos) const {
-		return m_table[pos.line][pos.pos].first;
+		return std::next(m_table[pos.line].begin(), pos.pos)->first;
 	}
 
 	T& operator[](const std::string& str) {

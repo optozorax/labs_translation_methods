@@ -1,23 +1,6 @@
 #include <iostream>
 #include <tables.h>
 
-std::ostream& operator<<(std::ostream& out, const Token& t) {
-	if (t) {
-		switch (t.table) {
-			case TABLE_KEYWORDS: out << "KEYWORDS."; break; 
-			case TABLE_OPERATIONS: out << "OPERATIONS."; break; 
-			case TABLE_DELIMITERS: out << "DELIMITERS."; break; 
-			case TABLE_IDENTIFIERS: out << "IDENTIFIERS."; break; 
-			case TABLE_CONSTANTS: out << "CONSTANTS."; break; 
-			case TABLE_STRUCTURES: out << "STRUCTURES."; break; 
-		}
-		out << t.pos.line << "." << t.pos.pos;
-	} else {
-		out << "not exists";
-	}
-	return out;
-}
-
 int main() {
 	Tables t;
 
