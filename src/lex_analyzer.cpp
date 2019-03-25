@@ -61,9 +61,10 @@ public:
 	AddType getState(void) const;
 	std::string getStr(void) const;
 	int getPos(void) const;
+	int getLine(void) const;
 private:
 	const std::string& str;
-	int i;
+	int i, n;
 	std::string sum;
 	StateType state;
 };
@@ -168,19 +169,23 @@ StateType automatonNext(StateType state, SymbolType sym) {
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-Automaton::Automaton(const std::string& str) : str(str), i(0), state(Start) {
+Automaton::Automaton(const std::string& str) : str(str), i(0), n(1), state(Start) {
 }
 
 //-----------------------------------------------------------------------------
 bool Automaton::next(void) {
 	if (state == PUSH || state == _IDE || state == _CONS)
-		i--;
+		if (str[--i] == '\n') n--;
 	if (isEndState()) {
 		state = Start;
 		sum = "";
 	}
 
 	char c = str[i];
+
+	//Надо либо automatonNext засовывать внуторь класса Automation, либо так
+	if (c == '\n')  n++;
+
 	state = automatonNext(state, getType(c));
 	sum += c;
 
@@ -229,6 +234,10 @@ int Automaton::getPos(void) const {
 	return i;
 }
 
+int Automaton::getLine(void) const {
+	return n;
+}
+
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
@@ -269,9 +278,10 @@ std::vector<Token> parse(const std::string& str, Tables& tables) {
 				case IGNORE: {} break;
 				case ERROR: {
 					// Надо как-то обработать эту ошибку
-					std::string error = "Error around symbol " + std::to_string(automaton.getPos());
-					throw std::exception();
-				} break;
+					std::string error = "Error around symbol \"" + to_add +
+						"\"\nIn " + std::to_string(automaton.getLine()) + " line";
+					throw error; // std::exception();
+				break;}
 			}
 		}
 	}
