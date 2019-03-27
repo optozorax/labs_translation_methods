@@ -24,7 +24,7 @@ enum StateType
 	_CONS, // PUSH, только для таблицы констант
 
 	// Промежуточные состояния
-	Ide,
+	Ide, Ide2,
 	Com1, Com2, Com3, Com4,
 	Num1, Num2,
 	Oper1, Oper2,
@@ -112,12 +112,16 @@ StateType automatonNext(StateType state, SymbolType sym) {
 
 			return ERR;
 		} break;
-
 		case Ide: {
 			if (sym == SYMBOL) return Ide;
 			if (sym == NUMBER) return Ide;
-			if (sym == DOT) return Ide;
+			if (sym == DOT) return Ide2;
 			return _IDE;
+		} break;
+		case Ide2: {
+			if (sym == SYMBOL) return Ide;
+			if (sym == NUMBER) return Ide;
+			return ERR;
 		} break;
 		case Com1: {
 			if (sym == DIV) return Com2;
