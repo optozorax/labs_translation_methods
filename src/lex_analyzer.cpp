@@ -120,7 +120,6 @@ StateType automatonNext(StateType state, SymbolType sym) {
 		} break;
 		case Ide2: {
 			if (sym == SYMBOL) return Ide;
-			if (sym == NUMBER) return Ide;
 			return ERR;
 		} break;
 		case Com1: {
@@ -138,6 +137,7 @@ StateType automatonNext(StateType state, SymbolType sym) {
 		}  break;
 		case Com4: {
 			if (sym == DIV) return NEXT;
+			if (sym == MUL) return Com4;
 			return Com3;
 		} break;
 		case Num1: {
