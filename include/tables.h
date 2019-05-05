@@ -24,9 +24,16 @@ enum TableType
 
 struct Token
 {
-	TableType table;
+	TableType syn_table;
 	hash_table_pos pos;
 
+	bool operator ==(Token b) {
+		return syn_table == b.syn_table && pos.line == b.pos.line && pos.pos == b.pos.pos;
+	}
+
+	bool operator !=(Token b) {
+		return syn_table != b.syn_table || pos.line != b.pos.line || pos.pos != b.pos.pos;
+	}
 	operator bool() const {
 		return bool(pos);
 	}
