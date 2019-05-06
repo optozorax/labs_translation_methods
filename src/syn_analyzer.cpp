@@ -6,13 +6,13 @@
 class SynTable
 {
 public:
-	SynTable(const std::string& path, Tables& tables);
+	SynTable(const std::string& path, Tables& tables);		//Конструктор
 
-	void Next(Token);
+	void Next(Token);					//Обработака следующего токена
 
 private:
 
-	struct  Row
+	struct  Row							//Строка лексической таблицы
 	{
 		std::vector<string> term;
 		int jmp;
@@ -22,10 +22,12 @@ private:
 		bool err;
 	};
 
-	Tables& tables;
-	int state;
-	std::vector<int> stack_state;
-	std::vector<Row> syn_table;
+
+	Type type;							//Тип следующих функций
+	Tables& tables;						//Хэш таблицы
+	int state;							//Текущее состояние
+	std::vector<int> stack_state;		//Стек следующих состояний
+	std::vector<Row> syn_table;			//Синтаксическая таблица
 };
 
 //=============================================================================
@@ -50,6 +52,7 @@ SynTable::SynTable(const std::string& path, Tables& tables) : tables(tables) {
 
 	stack_state.clear(); 
 	state = 0;
+	type = TYPE_NONE;
 
 	for (size_t i = 0; i < n; i++)
 	{
@@ -68,19 +71,19 @@ SynTable::SynTable(const std::string& path, Tables& tables) : tables(tables) {
 	itable.close();
 }
 
-void SynTable::Next(Token token)
+std::optional<> SynTable::Next(Token token)
 {
 	bool f = false;
 	for (auto& i : syn_table[state].term)
 	{
-		if (i == "indS" && token.syn_table == TABLE_IDENTIFIERS)
+		if (i == "indS" && token.table == TABLE_IDENTIFIERS)
 		{
 			auto b = tables.getStr(token);		//доработать
 			f = (b[0] >= 'A' && b[0] <= 'Z');
 		}
-		if (i == "ind" && token.syn_table == TABLE_IDENTIFIERS)
+		if (i == "ind" && token.table == TABLE_IDENTIFIERS)
 			f = true;
-		if (i == "const" && token.syn_table == TABLE_CONSTANTS)
+		if (i == "const" && token.table == TABLE_CONSTANTS)
 			f = true;
 		if (token == tables.find(i))
 			f = true;
@@ -95,13 +98,47 @@ void SynTable::Next(Token token)
 
 		s = state;
 
+		a = b = c
+		b = (a+c)*(b-d)
+		b = a + c * d
+		b = a * c + d
+
+		//Тип задаем 
+		switch (state)
+		{
+		case 28:
+			type = TYPE_INT;
+			break;
+		case 29:
+			type = TYPE_FLOAT;
+			break;
+		case 30:
+			type = TYPE_STRUCT;
+			break;
+		case 23:
+		case 43:
+			type = TYPE_NONE;
+		case 21:
+		case 49:
+			if (type != TYPE_NONE)
+			{
+				auto& arg = tables.get<Identifier>(token);
+				arg.type = type;
+			}
+			break;
+		default:
+			break;
+		}
+
 		if (syn_table[state].ret)
 		{
-			if (stack_state.size())
+			if (stack_state.size()) {
 				state = stack_state.back();
-			else
-				return;
-			stack_state.pop_back();
+				stack_state.pop_back();
+			} 
+			//else
+				//return;
+			
 		}
 		else
 			state = syn_table[state].jmp;
@@ -138,9 +175,10 @@ std::vector<std::vector<string>> Analyzer(const std::vector<Token>& tokens, Tabl
 		if (i.operator!=(space) && i != enter && i != tab)
 		{
 			//std::cout <<  tables.getStr(i) << std::endl;
-			syn_table.Next(i);
-		}
-
+			if (syn_table.Next(i)) {
+				// push
+			}
+		}  
 
 
 	return result;

@@ -9,7 +9,7 @@ Tables::Tables() :
 	m_constants(500), 
 	m_structures(500) {
 	{
-		std::vector<string> add = {"int", "float", "struct", "return"};
+		std::vector<string> add = {"int", "float", "struct", "return", "void", "main"};
 		for (auto& i : add)
 			m_keywords.add(i, {});
 	}
@@ -29,7 +29,7 @@ Tables::Tables() :
 
 //-----------------------------------------------------------------------------
 void Tables::deleteFromIdentifiers(const Token& token) {
-	if (token.syn_table != TABLE_IDENTIFIERS)
+	if (token.table != TABLE_IDENTIFIERS)
 		throw std::exception();
 	m_identifiers.erase(token.pos);
 }
@@ -57,7 +57,7 @@ Token Tables::add(const std::string& str, const TableType& type) {
 
 //-----------------------------------------------------------------------------
 std::string Tables::getStr(const Token& token) const {
-	switch (token.syn_table) {
+	switch (token.table) {
 		case TABLE_KEYWORDS: return m_keywords.str(token.pos); break; 
 		case TABLE_OPERATIONS: return m_operations.str(token.pos); break; 
 		case TABLE_DELIMITERS: return m_delimiters.str(token.pos); break; 
@@ -71,7 +71,7 @@ std::string Tables::getStr(const Token& token) const {
 std::ostream& operator<<(std::ostream& out, const Token& t) {
 	std::stringstream sout;
 	if (t) {
-		switch (t.syn_table) {
+		switch (t.table) {
 			case TABLE_KEYWORDS: sout << "KEYWORDS."; break; 
 			case TABLE_OPERATIONS: sout << "OPERATIONS."; break; 
 			case TABLE_DELIMITERS: sout << "DELIMITERS."; break; 
