@@ -33,7 +33,7 @@ private:
 //=============================================================================
 //=============================================================================
 //=============================================================================
-
+//Считываем таблицу и задаем начальные значения
 SynTable::SynTable(const std::string& path, Tables& tables) : tables(tables) {
 	ifstream itable(path);
 
@@ -71,7 +71,7 @@ SynTable::SynTable(const std::string& path, Tables& tables) : tables(tables) {
 	itable.close();
 }
 
-std::optional<> SynTable::Next(Token token)
+void/*std::optional<>*/ SynTable::Next(Token token)
 {
 	bool f = false;
 	for (auto& i : syn_table[state].term)
@@ -91,19 +91,22 @@ std::optional<> SynTable::Next(Token token)
 
 	int s;
 
+	//Если токен есть в списке возможных слов
 	if (f)
 	{
+		//Добавление в стек
 		if (syn_table[state].stk)
 			stack_state.push_back(state + 1);
 
+		//Созранение положение
 		s = state;
 
-		a = b = c
-		b = (a+c)*(b-d)
-		b = a + c * d
-		b = a * c + d
+		//a = b = c
+		//b = (a+c)*(b-d)
+		//b = a + c * d
+		//b = a * c + d
 
-		//Тип задаем 
+		//Задаем тип
 		switch (state)
 		{
 		case 28:
@@ -130,29 +133,34 @@ std::optional<> SynTable::Next(Token token)
 			break;
 		}
 
+		//Конец ветки, возвращение по стеку
 		if (syn_table[state].ret)
 		{
-			if (stack_state.size()) {
-				state = stack_state.back();
-				stack_state.pop_back();
-			} 
-			//else
-				//return;
-			
+			//Если пустой то пишем ошибку(по идее она не случится)
+			if(!stack_state.size())
+			{
+				std::string error = "Error, stack going lim";
+					throw error;
+			}
+
+			state = stack_state.back();
+			stack_state.pop_back();
 		}
 		else
 			state = syn_table[state].jmp;
 
+		//Если это не терм то идем с этим токеном дальше
 		if (!syn_table[s].act)
 			Next(token);
 	}
 	else
-		if (!syn_table[state].err)
+		//Если токен не найден среди возмодный слов
+		if (!syn_table[state].err)//и это не ошибка
 		{
-			state++;
+			state++;		//переходим на альтернативу
 			Next(token);
 		}
-		else
+		else		//Иначе формируем сообщение об ошибке
 		{
 			std::string error = "Error, instead "+ tables.getStr(token) + " expected: ";
 			for (auto& i : syn_table[state].term)
@@ -167,6 +175,7 @@ std::vector<std::vector<string>> Analyzer(const std::vector<Token>& tokens, Tabl
 	
 	SynTable syn_table(path, tables);
 
+	//Пробелы перезоды на новую строку и табуляция пропускаем
 	Token space = tables.find(" ");
 	Token enter = tables.find("\n");
 	Token tab = tables.find("\t");
@@ -175,9 +184,11 @@ std::vector<std::vector<string>> Analyzer(const std::vector<Token>& tokens, Tabl
 		if (i.operator!=(space) && i != enter && i != tab)
 		{
 			//std::cout <<  tables.getStr(i) << std::endl;
-			if (syn_table.Next(i)) {
+			//Обрабатываем по одному токену
+			syn_table.Next(i);
+			//if (syn_table.Next(i)) {
 				// push
-			}
+			//}
 		}  
 
 
