@@ -9,7 +9,7 @@ Tables::Tables() :
 	m_constants(500), 
 	m_structures(500) {
 	{
-		std::vector<string> add = {"int", "float", "struct", "return"};
+		std::vector<string> add = {"int", "float", "struct", "return", "void", "main"};
 		for (auto& i : add)
 			m_keywords.add(i, {});
 	}

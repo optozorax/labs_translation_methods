@@ -27,6 +27,13 @@ struct Token
 	TableType table;
 	hash_table_pos pos;
 
+	bool operator ==(Token b) {
+		return table == b.table && pos.line == b.pos.line && pos.pos == b.pos.pos;
+	}
+
+	bool operator !=(Token b) {
+		return table != b.table || pos.line != b.pos.line || pos.pos != b.pos.pos;
+	}
 	operator bool() const {
 		return bool(pos);
 	}
@@ -36,6 +43,7 @@ std::ostream& operator<<(std::ostream& out, const Token& t);
 
 enum Type
 {
+	TYPE_NONE,
 	TYPE_INT, 
 	TYPE_FLOAT, 
 
