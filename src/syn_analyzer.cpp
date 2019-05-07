@@ -22,7 +22,9 @@ private:
 		bool err;
 	};
 
+	string nameStr;						//Имя структуры, которая обрабатывается
 
+	Token struc;
 	Type type;							//Тип следующих функций
 	Tables& tables;						//Хэш таблицы
 	int state;							//Текущее состояние
@@ -79,14 +81,12 @@ void/*std::optional<>*/ SynTable::Next(Token token)
 		if (i == "indS" && token.table == TABLE_IDENTIFIERS)
 		{
 			auto b = tables.getStr(token);		//доработать
-			f = (b[0] >= 'A' && b[0] <= 'Z');
+			if (b[0] >= 'A' && b[0] <= 'Z') { f = true; break; }
+			
 		}
-		if (i == "ind" && token.table == TABLE_IDENTIFIERS)
-			f = true;
-		if (i == "const" && token.table == TABLE_CONSTANTS)
-			f = true;
-		if (token == tables.find(i))
-			f = true;
+		if (i == "ind" && token.table == TABLE_IDENTIFIERS) { f = true; break; }
+		if (i == "const" && token.table == TABLE_CONSTANTS) { f = true; break; }
+		if (token == tables.find(i)) { f = true; break; }
 	}
 
 	int s;
@@ -109,25 +109,66 @@ void/*std::optional<>*/ SynTable::Next(Token token)
 		//Задаем тип
 		switch (state)
 		{
-		case 28:
-			type = TYPE_INT;
+		case 12:	//Добавление тип структуры
+			nameStr = tables.getStr(token);
+			struc = tables.add(nameStr, TABLE_STRUCTURES);
 			break;
-		case 29:
-			type = TYPE_FLOAT;
+		case 21:	//Добавление поля в таблицу структуры
+		{
+			auto& arg = tables.get<Structure>(struc);
+			Structure::StructElem elem;
+			string name = tables.getStr(token);
+			for(auto& i : arg.elems)
+				if (i.name == name)
+				{
+					std::string error = "Error, ind \"" + name + "\" was announced in struc \"" + nameStr + "\"";
+					throw error;
+				}
+			elem.name = name;
+			elem.structToken = struc;
+			elem.type = type;
+			arg.elems.push_back(elem);
+		}
 			break;
-		case 30:
-			type = TYPE_STRUCT;
-			break;
-		case 23:
-		case 43:
-			type = TYPE_NONE;
-		case 21:
-		case 49:
-			if (type != TYPE_NONE)
+		case 49: //Объевление переменной
+			if (type == TYPE_STRUCT)	//Если тип структура
 			{
+				auto& arg = tables.get<Structure>(struc);	//То всем полям, которые найдем в таблице
+				for (auto& i : arg.elems)					//Задаем тип из структуры
+				{
+					auto tok = tables.find(tables.getStr(token) + "." + i.name);
+					if (tok)
+					{
+						auto& argtok = tables.get<Identifier>(tok);
+						argtok.type = i.type;
+					}
+				}
+			}
+			if (type != TYPE_NONE)
+			{	//Задаем тип переменной
 				auto& arg = tables.get<Identifier>(token);
+				if (arg.type != TYPE_NONE)
+				{
+					std::string error = "Error, \"" + tables.getStr(token) + "\" ind was announced";
+					throw error;
+				}
 				arg.type = type;
 			}
+			break;
+		case 28: //Объявление тип int
+			type = TYPE_INT;
+			break;
+		case 29: //Объявление тип float
+			type = TYPE_FLOAT;
+			break;
+		case 30: //Объявление тип структуры
+			type = TYPE_STRUCT;
+			struc = tables.find(tables.getStr(token), TABLE_STRUCTURES);
+			break;
+		case 23:
+		case 43: //окончание объявления
+		case 53:
+			type = TYPE_NONE;
 			break;
 		default:
 			break;
