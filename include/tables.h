@@ -86,6 +86,7 @@ public:
 	void deleteFromIdentifiers(const Token& token); 
 
 	Token find(const std::string& str) const;
+	Token find(const std::string& str, const TableType& type) const;
 	Token add(const std::string& str, const TableType& type);
 	std::string getStr(const Token& token) const;
 

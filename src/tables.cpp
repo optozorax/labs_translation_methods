@@ -46,6 +46,19 @@ Token Tables::find(const std::string& str) const {
 	return {TABLE_NULL, hash_table_pos::getNullPos()};
 }
 
+Token Tables::find(const std::string& str, const TableType& type) const {
+	switch (type)
+	{
+		case TABLE_KEYWORDS:	{ auto token = m_keywords.find(str);	if (token) return { TABLE_KEYWORDS, token }; }		break;
+		case TABLE_DELIMITERS:	{ auto token = m_delimiters.find(str);	if (token) return { TABLE_DELIMITERS, token }; }	break;
+		case TABLE_OPERATIONS:	{ auto token = m_operations.find(str);	if (token) return { TABLE_OPERATIONS, token }; }	break;
+		case TABLE_IDENTIFIERS: { auto token = m_identifiers.find(str); if (token) return { TABLE_IDENTIFIERS, token }; }	break;
+		case TABLE_CONSTANTS:	{ auto token = m_constants.find(str);	if (token) return { TABLE_CONSTANTS, token }; }		break;
+		case TABLE_STRUCTURES:	{ auto token = m_structures.find(str);	if (token) return { TABLE_STRUCTURES, token }; }	break;
+	}
+	return { TABLE_NULL, hash_table_pos::getNullPos() };
+}
+
 //-----------------------------------------------------------------------------
 Token Tables::add(const std::string& str, const TableType& type) {
 	switch (type) {
