@@ -117,7 +117,14 @@ void/*std::optional<>*/ SynTable::Next(Token token)
 		{
 			auto& arg = tables.get<Structure>(struc);
 			Structure::StructElem elem;
-			elem.name = tables.getStr(token);
+			string name = tables.getStr(token);
+			for(auto& i : arg.elems)
+				if (i.name == name)
+				{
+					std::string error = "Error, ind \"" + name + "\" was announced in struc \"" + nameStr + "\"";
+					throw error;
+				}
+			elem.name = name;
 			elem.structToken = struc;
 			elem.type = type;
 			arg.elems.push_back(elem);
@@ -142,7 +149,7 @@ void/*std::optional<>*/ SynTable::Next(Token token)
 				auto& arg = tables.get<Identifier>(token);
 				if (arg.type != TYPE_NONE)
 				{
-					std::string error = "Error, " + tables.getStr(token) + " ind was announced";
+					std::string error = "Error, \"" + tables.getStr(token) + "\" ind was announced";
 					throw error;
 				}
 				arg.type = type;
