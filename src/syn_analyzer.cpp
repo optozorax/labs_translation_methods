@@ -2,6 +2,7 @@
 #include <syn_analyzer.h>
 #include <fstream>
 #include <iostream>
+#include <tree.h>
 
 class SynTable
 {
@@ -28,6 +29,9 @@ private:
 	int nstr;							//Ќомер строки у токенов
 
 	void Error(std::string);
+
+	Tree<Token> *root, *treeptr;		//корень дерева и указатель на правый лист
+	bool treestart;						//„исло элементов в дереве
 
 	Token struc;
 	Type type;							//“ип следующих функций
@@ -57,6 +61,11 @@ SynTable::SynTable(const std::string& path, Tables& tables) : tables(tables) {
 	state = 0;
 	type = TYPE_NONE;
 	nstr = 1;
+
+	root = new Tree<Token>(tables.find("="));
+	//root = new Tree<Token>(Token());
+	treeptr = nullptr;
+	treestart = false;
 
 	for (size_t i = 0; i < n; i++)
 	{
@@ -167,6 +176,12 @@ void/*std::optional<>*/ SynTable::Next(Token token)
 				if (arg.type != TYPE_NONE) Error("\"" + tables.getStr(token) + "\" ind was announced"); //ќшибка переменна€ уже была объ€влена
 				arg.type = type;
 			}
+			else
+				if(tables.get<Identifier>(token).type == TYPE_NONE) Error("\"" + tables.getStr(token) + "\" ind not announced"); //ќшибка переменна€ не былоа объ€влена
+				else type = tables.get<Identifier>(token).type;
+			break;
+		case 78:
+		//	if(type == TYPE_STRUCT && tables.get<Identifier>()
 			break;
 		case 28: //ќбъ€вление тип int
 			type = TYPE_INT;
@@ -179,8 +194,10 @@ void/*std::optional<>*/ SynTable::Next(Token token)
 			struc = tables.find(tables.getStr(token), TABLE_STRUCTURES);
 			break;
 		case 23:
+		case 46:
 		case 43: //окончание объ€влени€
 		case 53:
+	//		if()
 			type = TYPE_NONE;
 			break;
 		default:

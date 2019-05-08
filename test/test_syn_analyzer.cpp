@@ -4,7 +4,7 @@
 #include <syn_analyzer.h>
 
 int main() {
-	std::string file = "struct A\n{\n\tfloat b;\n\tint d;\n};\nvoid main()\n{\n\tint c;\n\tc = (5+6)*(4;\n\tfloat d;\n\tA t;\n\tt.b = 0.5;\n\td = 1564*15.15 - 0.6464;\n\te = c != d - c == d;\n\t/* aoeusnthoaeu float: a*b **/\n\td= d;\n}";
+	std::string file = "struct A\n{\n\tfloat b;\n\tint d;\n};\nvoid main()\n{\n\tint c;\n\tc = (5+6)*4(;\n\tfloat d;\n\tA t;\n\tt.b = 0.5;\n\td = 1564*15.15 - 0.6464;\n\tint e = c != d - c == d;\n\t/* aoeusnthoaeu float: a*b **/\n\td= d;\n}";
 	file += ' ';
 
 	std::cout << "Parsing of string: \n" << file << std::endl;
