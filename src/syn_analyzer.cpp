@@ -24,6 +24,11 @@ private:
 
 	string nameStr;						//Имя структуры, которая обрабатывается
 
+	bool CheckTrashToken(Token token);	//Проверка ненужных токенов
+	int nstr;							//Номер строки у токенов
+
+	void Error(std::string);
+
 	Token struc;
 	Type type;							//Тип следующих функций
 	Tables& tables;						//Хэш таблицы
@@ -39,11 +44,7 @@ private:
 SynTable::SynTable(const std::string& path, Tables& tables) : tables(tables) {
 	ifstream itable(path);
 
-	if (!itable)
-	{
-		string error = "Error open file " + path;
-		throw error;
-	}
+	if (!itable) Error("Error open file " + path);
 
 	int n, m;
 	int num;
@@ -55,6 +56,7 @@ SynTable::SynTable(const std::string& path, Tables& tables) : tables(tables) {
 	stack_state.clear(); 
 	state = 0;
 	type = TYPE_NONE;
+	nstr = 1;
 
 	for (size_t i = 0; i < n; i++)
 	{
@@ -73,8 +75,25 @@ SynTable::SynTable(const std::string& path, Tables& tables) : tables(tables) {
 	itable.close();
 }
 
+void SynTable::Error(std::string str)
+{
+	throw "Error(" + std::to_string(nstr) + "): " + str;
+}
+
+bool SynTable::CheckTrashToken(Token token)
+{
+	Token tab = tables.find("\t");
+	Token sce = tables.find(" ");
+	Token ent = tables.find("\n");
+	if (token == tab || token == sce) return true;
+	if (token == ent) { nstr++; return true; }
+	return false;
+}
+
 void/*std::optional<>*/ SynTable::Next(Token token)
 {
+	if (CheckTrashToken(token)) return;
+
 	bool f = false;
 	for (auto& i : syn_table[state].term)
 	{
@@ -118,12 +137,10 @@ void/*std::optional<>*/ SynTable::Next(Token token)
 			auto& arg = tables.get<Structure>(struc);
 			Structure::StructElem elem;
 			string name = tables.getStr(token);
-			for(auto& i : arg.elems)
-				if (i.name == name)
-				{
-					std::string error = "Error, ind \"" + name + "\" was announced in struc \"" + nameStr + "\"";
-					throw error;
-				}
+
+			for (auto& i : arg.elems) //Ошибка одинаковые поля в структуре
+				if (i.name == name) Error("ind \"" + name + "\" was announced in struc \"" + nameStr + "\"");
+
 			elem.name = name;
 			elem.structToken = struc;
 			elem.type = type;
@@ -147,11 +164,7 @@ void/*std::optional<>*/ SynTable::Next(Token token)
 			if (type != TYPE_NONE)
 			{	//Задаем тип переменной
 				auto& arg = tables.get<Identifier>(token);
-				if (arg.type != TYPE_NONE)
-				{
-					std::string error = "Error, \"" + tables.getStr(token) + "\" ind was announced";
-					throw error;
-				}
+				if (arg.type != TYPE_NONE) Error("\"" + tables.getStr(token) + "\" ind was announced"); //Ошибка переменная уже была объявлена
 				arg.type = type;
 			}
 			break;
@@ -178,11 +191,7 @@ void/*std::optional<>*/ SynTable::Next(Token token)
 		if (syn_table[state].ret)
 		{
 			//Если пустой то пишем ошибку(по идее она не случится)
-			if(!stack_state.size())
-			{
-				std::string error = "Error, stack going lim";
-					throw error;
-			}
+			if (!stack_state.size()) Error("stack going lim"); //Ошибка выход из стека
 
 			state = stack_state.back();
 			stack_state.pop_back();
@@ -203,10 +212,10 @@ void/*std::optional<>*/ SynTable::Next(Token token)
 		}
 		else		//Иначе формируем сообщение об ошибке
 		{
-			std::string error = "Error, instead "+ tables.getStr(token) + " expected: ";
+			std::string error = "instead "+ tables.getStr(token) + " expected: ";
 			for (auto& i : syn_table[state].term)
 				error += i;
-			throw error;
+			Error(error); //Ошибка встретили не тот токен
 		}
 }
 
@@ -216,21 +225,13 @@ std::vector<std::vector<string>> Analyzer(const std::vector<Token>& tokens, Tabl
 	
 	SynTable syn_table(path, tables);
 
-	//Пробелы перезоды на новую строку и табуляция пропускаем
-	Token space = tables.find(" ");
-	Token enter = tables.find("\n");
-	Token tab = tables.find("\t");
-
 	for (auto i : tokens)
-		if (i.operator!=(space) && i != enter && i != tab)
-		{
-			//std::cout <<  tables.getStr(i) << std::endl;
-			//Обрабатываем по одному токену
-			syn_table.Next(i);
-			//if (syn_table.Next(i)) {
-				// push
-			//}
-		}  
+		//std::cout <<  tables.getStr(i) << std::endl;
+		//Обрабатываем по одному токену
+		syn_table.Next(i);
+		//if (syn_table.Next(i)) {
+			// push
+		//}
 
 
 	return result;
