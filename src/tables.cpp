@@ -15,7 +15,7 @@ Tables::Tables() :
 	}
 
 	{
-		std::vector<string> add = {" ", ";", "\n", "\t", "{", "}", "(", ")"};
+		std::vector<string> add = {" ", ";", "\n", "\t", "{", "}", "(", ")", ","};
 		for (auto& i : add)
 			m_delimiters.add(i, {});
 	}

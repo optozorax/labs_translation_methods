@@ -54,6 +54,7 @@ struct Identifier
 {
 	Type type;
 	bool isInitialized;
+	std::string nameStruct;	//Если тип структура
 };
 
 struct Constant
@@ -70,6 +71,7 @@ struct Structure
 	struct StructElem
 	{
 		Type type;
+		std::string nameStruct; //Если тип структура
 		std::string name;
 		Token structToken;
 	};

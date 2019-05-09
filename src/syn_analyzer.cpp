@@ -153,14 +153,18 @@ void/*std::optional<>*/ SynTable::Next(Token token)
 			elem.name = name;
 			elem.structToken = struc;
 			elem.type = type;
+			if (type == TYPE_STRUCT)
+				elem.nameStruct = nameStr;
 			arg.elems.push_back(elem);
 		}
 			break;
 		case 49: //Объевление переменной
+		{
+			auto& arg = tables.get<Identifier>(token);
 			if (type == TYPE_STRUCT)	//Если тип структура
 			{
-				auto& arg = tables.get<Structure>(struc);	//То всем полям, которые найдем в таблице
-				for (auto& i : arg.elems)					//Задаем тип из структуры
+				auto& argStruc = tables.get<Structure>(struc);	//То всем полям, которые найдем в таблице
+				for (auto& i : argStruc.elems)					//Задаем тип из структуры
 				{
 					auto tok = tables.find(tables.getStr(token) + "." + i.name);
 					if (tok)
@@ -169,19 +173,25 @@ void/*std::optional<>*/ SynTable::Next(Token token)
 						argtok.type = i.type;
 					}
 				}
+				arg.nameStruct = nameStr;
 			}
 			if (type != TYPE_NONE)
 			{	//Задаем тип переменной
-				auto& arg = tables.get<Identifier>(token);
 				if (arg.type != TYPE_NONE) Error("\"" + tables.getStr(token) + "\" ind was announced"); //Ошибка переменная уже была объявлена
 				arg.type = type;
 			}
 			else
-				if(tables.get<Identifier>(token).type == TYPE_NONE) Error("\"" + tables.getStr(token) + "\" ind not announced"); //Ошибка переменная не былоа объявлена
-				else type = tables.get<Identifier>(token).type;
+				if (tables.get<Identifier>(token).type == TYPE_NONE) Error("\"" + tables.getStr(token) + "\" ind not announced"); //Ошибка переменная не былоа объявлена
+				else type = tables.get<Identifier>(token).type, nameStr = tables.get<Identifier>(token).nameStruct;
+		}
 			break;
 		case 78:
-		//	if(type == TYPE_STRUCT && tables.get<Identifier>()
+		{
+			auto& arg = tables.get<Identifier>(token);
+			if (type == TYPE_STRUCT && arg.type == TYPE_STRUCT && nameStr != arg.nameStruct) Error("Cannot cast type \"" + nameStr + "\" to \"" + arg.nameStruct + "\"");
+			if (type == TYPE_STRUCT && arg.type != TYPE_STRUCT) Error("Cannot cast type \"" + nameStr + "\ to " + (arg.type == TYPE_INT ? "\" int\"" : "\" float\""));
+			if (type != TYPE_STRUCT && arg.type == TYPE_STRUCT) Error("Cannot cast type \"" + type /*(type == TYPE_INT ? "int\ to" : "float\ to")*/ + arg.nameStruct  + "\"");
+		}
 			break;
 		case 28: //Объявление тип int
 			type = TYPE_INT;
@@ -191,9 +201,12 @@ void/*std::optional<>*/ SynTable::Next(Token token)
 			break;
 		case 30: //Объявление тип структуры
 			type = TYPE_STRUCT;
-			struc = tables.find(tables.getStr(token), TABLE_STRUCTURES);
+			nameStr = tables.getStr(token);
+			struc = tables.find(nameStr , TABLE_STRUCTURES);
 			break;
 		case 23:
+		case 54:
+			break;
 		case 46:
 		case 43: //окончание объявления
 		case 53:
@@ -243,13 +256,15 @@ std::vector<std::vector<string>> Analyzer(const std::vector<Token>& tokens, Tabl
 	SynTable syn_table(path, tables);
 
 	for (auto i : tokens)
-		//std::cout <<  tables.getStr(i) << std::endl;
+	{
+		//std::cout << tables.getStr(i) << std::endl;
 		//Обрабатываем по одному токену
+
 		syn_table.Next(i);
 		//if (syn_table.Next(i)) {
 			// push
 		//}
-
+	}
 
 	return result;
 }
