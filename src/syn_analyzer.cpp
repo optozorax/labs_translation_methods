@@ -2,14 +2,18 @@
 #include <syn_analyzer.h>
 #include <fstream>
 #include <iostream>
+#include <optional>
+#include <stack>
 
 class SynTable
 {
 public:
 	SynTable(const std::string& path, Tables& tables);		//Конструктор
 
-	void Next(Token);					//Обработака следующего токена
+	bool /*std::optional<vector<Token>>*/ Next(Token);					//Обработака следующего токена
+	std::vector<Token>	ret;
 
+	std::vector<string> warning;
 private:
 
 	struct  Row							//Строка лексической таблицы
@@ -28,6 +32,9 @@ private:
 	int nstr;							//Номер строки у токенов
 
 	void Error(std::string);
+	void Warning(std::string);
+
+	bool treestart;						//Число элементов в дереве
 
 	Token struc;
 	Type type;							//Тип следующих функций
@@ -35,6 +42,23 @@ private:
 	int state;							//Текущее состояние
 	std::vector<int> stack_state;		//Стек следующих состояний
 	std::vector<Row> syn_table;			//Синтаксическая таблица
+
+	std::stack<Token>	oper;			//Операции
+
+	int GetPriorOper(Token token)		//Получить преоритет опирации
+	{
+		auto str = tables.getStr(token);
+		if (str == "*")
+			return 8;
+		if (str == "+" || str == "-")
+			return 7;
+		if (str == "==" || str == "!=" || str == "<" || str == ">")
+			return 6;
+		if (str == "(")
+			return 2;
+		if (str == "=")
+			return 1;
+	}		
 };
 
 //=============================================================================
@@ -58,6 +82,8 @@ SynTable::SynTable(const std::string& path, Tables& tables) : tables(tables) {
 	type = TYPE_NONE;
 	nstr = 1;
 
+	treestart = false;
+
 	for (size_t i = 0; i < n; i++)
 	{
 		itable >> m;
@@ -80,6 +106,11 @@ void SynTable::Error(std::string str)
 	throw "Error(" + std::to_string(nstr) + "): " + str;
 }
 
+void SynTable::Warning(std::string str)
+{
+	warning.push_back("Warning(" + std::to_string(nstr) + "): " + str);
+}
+
 bool SynTable::CheckTrashToken(Token token)
 {
 	Token tab = tables.find("\t");
@@ -90,9 +121,9 @@ bool SynTable::CheckTrashToken(Token token)
 	return false;
 }
 
-void/*std::optional<>*/ SynTable::Next(Token token)
+bool/*std::optional<vector<Token>>*/ SynTable::Next(Token token)
 {
-	if (CheckTrashToken(token)) return;
+	if (CheckTrashToken(token)) return false;// std::nullopt;
 
 	bool f = false;
 	for (auto& i : syn_table[state].term)
@@ -108,6 +139,7 @@ void/*std::optional<>*/ SynTable::Next(Token token)
 		if (token == tables.find(i)) { f = true; break; }
 	}
 
+	bool out = false;
 	int s;
 
 	//Если токен есть в списке возможных слов
@@ -120,12 +152,7 @@ void/*std::optional<>*/ SynTable::Next(Token token)
 		//Созранение положение
 		s = state;
 
-		//a = b = c
-		//b = (a+c)*(b-d)
-		//b = a + c * d
-		//b = a * c + d
-
-		//Задаем тип
+		//Обработка тикущего состояние
 		switch (state)
 		{
 		case 12:	//Добавление тип структуры
@@ -144,14 +171,18 @@ void/*std::optional<>*/ SynTable::Next(Token token)
 			elem.name = name;
 			elem.structToken = struc;
 			elem.type = type;
+			if (type == TYPE_STRUCT)
+				elem.nameStruct = nameStr;
 			arg.elems.push_back(elem);
 		}
 			break;
 		case 49: //Объевление переменной
+		{
+			auto& arg = tables.get<Identifier>(token);
 			if (type == TYPE_STRUCT)	//Если тип структура
 			{
-				auto& arg = tables.get<Structure>(struc);	//То всем полям, которые найдем в таблице
-				for (auto& i : arg.elems)					//Задаем тип из структуры
+				auto& argStruc = tables.get<Structure>(struc);	//То всем полям, которые найдем в таблице
+				for (auto& i : argStruc.elems)					//Задаем тип из структуры
 				{
 					auto tok = tables.find(tables.getStr(token) + "." + i.name);
 					if (tok)
@@ -160,13 +191,85 @@ void/*std::optional<>*/ SynTable::Next(Token token)
 						argtok.type = i.type;
 					}
 				}
+				arg.nameStruct = nameStr;
 			}
 			if (type != TYPE_NONE)
 			{	//Задаем тип переменной
-				auto& arg = tables.get<Identifier>(token);
 				if (arg.type != TYPE_NONE) Error("\"" + tables.getStr(token) + "\" ind was announced"); //Ошибка переменная уже была объявлена
 				arg.type = type;
 			}
+			else
+				if (tables.get<Identifier>(token).type == TYPE_NONE) Error("\"" + tables.getStr(token) + "\" ind not announced"); //Ошибка переменная не былоа объявлена
+				else type = tables.get<Identifier>(token).type, nameStr = tables.get<Identifier>(token).nameStruct;
+
+			ret.push_back(token);
+		}
+			break;
+			//Дерево
+		case 73:	// =
+			treestart = true;
+			oper.push(token);
+			break;
+			//Структуры
+		case 88:   //id продолжение
+		{
+			ret.push_back(token);
+			auto& arg = tables.get<Identifier>(token);
+			if (arg.type == TYPE_STRUCT) Error("Cannot cast type \"" + arg.nameStruct + "\" in expression");
+		}
+			break;
+		case 89:	//Константа
+		{
+			auto& arg = tables.get<Constant>(token);
+			string name = tables.getStr(token);
+			Type b;
+			name.find(".") == -1 ? b = TYPE_INT : b = TYPE_FLOAT;
+			if (type == TYPE_INT && b == TYPE_FLOAT) Warning("loss of accuracy is possible");
+			arg.type = b;
+			ret.push_back(token);
+		}
+			break;
+		case 90: // (
+			oper.push(token);
+			break;
+		case 92:// )
+			Token top = oper.top();
+			oper.pop();
+			Token scob = tables.find("(");
+			while (top != scob)
+			{
+				ret.push_back(top);
+				top = oper.top();
+				oper.pop();
+			}
+			break;
+		case 93:// Продолжение выражения
+			if (type == TYPE_STRUCT) Error("Cannot cast expression to \"" + nameStr + "\"");
+			break;
+		case 64:
+		case 65:
+		case 66:
+		case 67:	//Операции
+		case 68:
+		case 69:
+		case 70:
+			while (oper.size() && GetPriorOper(oper.top()) >= GetPriorOper(token))
+			{
+				ret.push_back(oper.top());
+				oper.pop();
+			}
+			oper.push(token);
+			break;
+		case 78:
+		{
+			//root->right = new Tree<Token>(token);
+			//treeptr = root->right;
+			ret.push_back(token);
+			auto& arg = tables.get<Identifier>(token);
+			if (type == TYPE_STRUCT && arg.type == TYPE_STRUCT && nameStr != arg.nameStruct) Error("Cannot cast type \"" + nameStr + "\" from \"" + arg.nameStruct + "\"");
+			if (type == TYPE_STRUCT && arg.type != TYPE_STRUCT) Error("Cannot cast type \"" + nameStr + "\ from " + (arg.type == TYPE_INT ? "\" int\"" : "\" float\""));
+			if (type != TYPE_STRUCT && arg.type == TYPE_STRUCT) Error("Cannot cast type \"" + type /*(type == TYPE_INT ? "int\ to" : "float\ to")*/ + arg.nameStruct  + "\"");
+		}
 			break;
 		case 28: //Объявление тип int
 			type = TYPE_INT;
@@ -176,12 +279,28 @@ void/*std::optional<>*/ SynTable::Next(Token token)
 			break;
 		case 30: //Объявление тип структуры
 			type = TYPE_STRUCT;
-			struc = tables.find(tables.getStr(token), TABLE_STRUCTURES);
+			nameStr = tables.getStr(token);
+			struc = tables.find(nameStr , TABLE_STRUCTURES);
 			break;
 		case 23:
+		case 46:
 		case 43: //окончание объявления
-		case 53:
+		//case 53:
 			type = TYPE_NONE;
+		case 54:
+			if (treestart)
+			{
+				treestart = false;
+				while (oper.size())
+				{
+					ret.push_back(oper.top());
+					oper.pop();
+
+				}
+				out = true;
+			}
+			else
+				ret.clear();
 			break;
 		default:
 			break;
@@ -201,38 +320,47 @@ void/*std::optional<>*/ SynTable::Next(Token token)
 
 		//Если это не терм то идем с этим токеном дальше
 		if (!syn_table[s].act)
-			Next(token);
+			if (Next(token))
+				out = true;
 	}
 	else
 		//Если токен не найден среди возмодный слов
-		if (!syn_table[state].err)//и это не ошибка
-		{
-			state++;		//переходим на альтернативу
-			Next(token);
-		}
-		else		//Иначе формируем сообщение об ошибке
-		{
-			std::string error = "instead "+ tables.getStr(token) + " expected: ";
-			for (auto& i : syn_table[state].term)
-				error += i;
-			Error(error); //Ошибка встретили не тот токен
-		}
+	if (!syn_table[state].err)//и это не ошибка
+	{
+		state++;		//переходим на альтернативу
+		if (Next(token))
+			out = true;
+	}
+	else		//Иначе формируем сообщение об ошибке
+	{
+		std::string error = "instead "+ tables.getStr(token) + " expected: ";
+		for (auto& i : syn_table[state].term)
+			error += i;
+		Error(error); //Ошибка встретили не тот токен
+	}
+
+	return out;
 }
 
 //-----------------------------------------------------------------------------
-std::vector<std::vector<string>> Analyzer(const std::vector<Token>& tokens, Tables& tables, string path){
-	std::vector<std::vector<string>> result;
+std::vector<std::vector<Token>> Analyzer(const std::vector<Token>& tokens, Tables& tables, string path){
+	std::vector<std::vector<Token>> result;
 	
 	SynTable syn_table(path, tables);
 
 	for (auto i : tokens)
-		//std::cout <<  tables.getStr(i) << std::endl;
+	{
+		//std::cout << tables.getStr(i) << std::endl;
 		//Обрабатываем по одному токену
-		syn_table.Next(i);
-		//if (syn_table.Next(i)) {
-			// push
-		//}
+		if (syn_table.Next(i))
+		{
+			result.push_back(syn_table.ret);
+			syn_table.ret.clear();
+		}
+		//auto elem = syn_table.Next(i).value_or(vector<Token>());
+	}
 
-
+	for (auto& i : syn_table.warning)	//Вывод предупреждений
+		std::cout << i << endl;
 	return result;
 }
