@@ -37,6 +37,7 @@ private:
 	bool treestart;						//Число элементов в дереве
 
 	Token struc;
+	Token leftexper;					//Токел левой стороны выражения
 	Type type;							//Тип следующих функций
 	Tables& tables;						//Хэш таблицы
 	int state;							//Текущее состояние
@@ -179,6 +180,7 @@ bool/*std::optional<vector<Token>>*/ SynTable::Next(Token token)
 		case 49: //Объевление переменной
 		{
 			auto& arg = tables.get<Identifier>(token);
+			leftexper = token;	//Выставляем как левую сторону выражения
 			if (type == TYPE_STRUCT)	//Если тип структура
 			{
 				auto& argStruc = tables.get<Structure>(struc);	//То всем полям, которые найдем в таблице
@@ -207,8 +209,12 @@ bool/*std::optional<vector<Token>>*/ SynTable::Next(Token token)
 			break;
 			//Дерево
 		case 73:	// =
+		{
+			auto& arg = tables.get<Identifier>(leftexper);
+			arg.isInitialized = true;
 			treestart = true;
 			oper.push(token);
+		}
 			break;
 			//Структуры
 		case 88:   //id продолжение
@@ -216,6 +222,8 @@ bool/*std::optional<vector<Token>>*/ SynTable::Next(Token token)
 			ret.push_back(token);
 			auto& arg = tables.get<Identifier>(token);
 			if (arg.type == TYPE_STRUCT) Error("Cannot cast type \"" + arg.nameStruct + "\" in expression");
+			if (type == TYPE_INT && arg.type == TYPE_FLOAT) Warning("loss of accuracy is possible");
+			if (!arg.isInitialized && arg.type != TYPE_STRUCT) Error("Not initializated varible \"" + tables.getStr(token) + "\"");
 		}
 			break;
 		case 89:	//Константа
@@ -262,13 +270,14 @@ bool/*std::optional<vector<Token>>*/ SynTable::Next(Token token)
 			break;
 		case 78:
 		{
-			//root->right = new Tree<Token>(token);
-			//treeptr = root->right;
+			leftexper = token; // на тот случай если станет левой частью выражения
 			ret.push_back(token);
 			auto& arg = tables.get<Identifier>(token);
 			if (type == TYPE_STRUCT && arg.type == TYPE_STRUCT && nameStr != arg.nameStruct) Error("Cannot cast type \"" + nameStr + "\" from \"" + arg.nameStruct + "\"");
 			if (type == TYPE_STRUCT && arg.type != TYPE_STRUCT) Error("Cannot cast type \"" + nameStr + "\ from " + (arg.type == TYPE_INT ? "\" int\"" : "\" float\""));
 			if (type != TYPE_STRUCT && arg.type == TYPE_STRUCT) Error("Cannot cast type \"" + type /*(type == TYPE_INT ? "int\ to" : "float\ to")*/ + arg.nameStruct  + "\"");
+			if (type == TYPE_INT && arg.type == TYPE_FLOAT) Warning("loss of accuracy is possible");
+			if (!arg.isInitialized && arg.type != TYPE_STRUCT) Error("Not initializated varible \"" + tables.getStr(token) + "\"");
 		}
 			break;
 		case 28: //Объявление тип int
