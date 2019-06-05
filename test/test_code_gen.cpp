@@ -5,7 +5,7 @@
 #include <code_gen.h>
 
 int main() {
-	std::string file = "struct A\n{\n\tfloat b;\n\tint d;\n};\nstruct B\n{\n\tint c;\n};\nvoid main()\n{\n\tint c;\n\tc = (5+6)*4 + 7 * 65.3;\n\tint d = c;\n\tA t, o, p;\n\tB i;\n\tt.b = 0.5;\n\to = p = t;\n\t//o = i;\n\td = 1564*15.15 - 0.6464;\n\t/* aoeusnthoaeu float: a*b **/\n\td= d;\n}";
+	std::string file = "struct A\n{\n\tfloat b;\n\tint d;\n};\nstruct B\n{\n\tint g;\n};\nvoid main()\n{\n\tint g;\n\tg = (5+6)*4 + 7 * 65.3;\n\tint d = g;\n\tA t, o, p;\n\tB i;\n\tt.b = 0.5;\n\to = p = t;\n\t//o = i;\n\td = 1564*15.15 - 0.6464;\n\t/* aoeusnthoaeu float: a*b **/\n\td= d;\n}";
 	file += ' ';
 
 	std::cout << "Parsing of string: \n" << file << std::endl;

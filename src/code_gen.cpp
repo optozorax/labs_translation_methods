@@ -72,7 +72,7 @@ std::string CodeGen::DataCode(std::vector<std::string>& ident, std::vector<std::
 			str += "\tconst" + DelPoint(i) + "\treal8 " + i + "\n";
 	}
 
-	str += "\n.code\n\tSTART:\n\tfinit\n\n";
+	str += "\n.code\n\nMAIN PROC\n\tfinit\n\n";
 
 	return str;
 }
@@ -202,7 +202,7 @@ std::string CodeGen::StartCode()
 
 std::string CodeGen::EndCode()
 {
-	return "\tCALL ExitProcess@4\nEND START";
+	return "\tCALL ExitProcess@4\nMAIN ENDP\n\nEND MAIN";
 }
 
 //-----------------------------------------------------------------------------
