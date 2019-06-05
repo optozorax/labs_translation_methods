@@ -10,7 +10,7 @@ class CodeGen
 public:
 	CodeGen(Tables& tables);		//Конструктор
 
-	std::string DataCode(std::vector<std::string>& ident);
+	std::string DataCode(std::vector<std::string>& ident, std::vector<std::string>& cons);
 	std::string CreateCode(std::vector<Token> input);
 	std::string StartCode();
 	std::string EndCode();
@@ -20,6 +20,8 @@ private:
 
 	std::string PrintLastStekElem(std::vector<Token>& stack);
 	void LieAdd(std::vector<Token>& stack);
+	//std::string& DelPoint(std::string& str);
+	std::string DelPoint(std::string str);
 };
 
 //=============================================================================
@@ -29,7 +31,23 @@ CodeGen::CodeGen(Tables& tables) : tables(tables) {
 
 }
 
-std::string CodeGen::DataCode(std::vector<std::string>& ident)
+//std::string& CodeGen::DelPoint(std::string &a)
+//{
+//	size_t i = a.find('.', 0);
+//	if (i != string::npos)
+//		a.erase(i, 1);
+//	return a;
+//}
+
+std::string CodeGen::DelPoint(std::string a)
+{
+	size_t i = a.find('.', 0);
+	if (i != string::npos)
+		a.erase(i, 1);
+	return a;
+}
+
+std::string CodeGen::DataCode(std::vector<std::string>& ident, std::vector<std::string>& cons)
 {
 	std::string str = ".data\n\ttmp_var	dd ?\n";
 	
@@ -39,12 +57,21 @@ std::string CodeGen::DataCode(std::vector<std::string>& ident)
 		auto arg = tables.get<Identifier>(t);
 		if (arg.type != TYPE_STRUCT)
 		{
-			str += "\t" + i + "\t";
+			str += "\t" + DelPoint(i) + "\t";
 			if (arg.type == TYPE_FLOAT) str += "real8 ?\n";
 			if (arg.type == TYPE_INT) str += "dd ?\n";
 		}
 	}
 	
+	str += "\n";
+
+	for (auto& i : cons)
+	{
+		auto arg = tables.get<Constant>(tables.find(i));
+		if(arg.type == TYPE_FLOAT)
+			str += "\tconst" + DelPoint(i) + "\treal8 " + i + "\n";
+	}
+
 	str += "\n.code\n\tSTART:\n\tfinit\n\n";
 
 	return str;
@@ -84,18 +111,18 @@ std::string CodeGen::CreateCode(std::vector<Token> input)
 						if (elem.type == TYPE_FLOAT)
 						{
 							if (tables.get<Identifier>(tables.find(namer + "." + elem.name)).isInitialized)
-								str += "\tfld\t" + namer + "." + elem.name + "\n";
+								str += "\tfld\t" + namer + elem.name + "\n";
 							else
 								str += "\tfldz\n";
-							str += "\tfstp\t" + namel + "." + elem.name + "\n";
+							str += "\tfstp\t" + namel + elem.name + "\n";
 						}
 						if (elem.type == TYPE_INT)
 						{
 							if (tables.get<Identifier>(tables.find(namer + "." + elem.name)).isInitialized)
-								str += "\tfild\t" + namer + "." + elem.name + "\n";
+								str += "\tfild\t" + namer + elem.name + "\n";
 							else
 								str += "\tfldz\n";
-							str += "\tfistp\t" + namel + "." + elem.name + "\n";
+							str += "\tfistp\t" + namel + elem.name + "\n";
 						}
 					}
 
@@ -107,13 +134,13 @@ std::string CodeGen::CreateCode(std::vector<Token> input)
 				{
 					if (stack.size() == 0)
 					{
-						if (arg.type == TYPE_INT) str += "\tfistp\t" + tables.getStr(left) + "\n";
-						if (arg.type == TYPE_FLOAT) str += "\tfstp\t" + tables.getStr(left) + "\n";
+						if (arg.type == TYPE_INT) str += "\tfistp\t" + DelPoint(tables.getStr(left)) + "\n";
+						if (arg.type == TYPE_FLOAT) str += "\tfstp\t" + DelPoint(tables.getStr(left)) + "\n";
 					}
 					else
 					{
-						if (arg.type == TYPE_INT) str += "\tfist\t" + tables.getStr(left) + "\n";
-						if (arg.type == TYPE_FLOAT) str += "\tfst\t" + tables.getStr(left) + "\n";
+						if (arg.type == TYPE_INT) str += "\tfist\t" + DelPoint(tables.getStr(left)) + "\n";
+						if (arg.type == TYPE_FLOAT) str += "\tfst\t" + DelPoint(tables.getStr(left)) + "\n";
 
 						LieAdd(stack);
 					}
@@ -127,7 +154,7 @@ std::string CodeGen::CreateCode(std::vector<Token> input)
 			LieAdd(stack);
 
 			if (name == "+") str += "\tfadd\n";
-			if (name == "-") str += "\tfsub\n";
+			if (name == "-") str += "\tfsubr\n";
 			if (name == "*") str += "\tfmul\n";
 		}
 	}
@@ -152,14 +179,18 @@ std::string CodeGen::PrintLastStekElem(std::vector<Token>& stack)
 	if (tok.table == TABLE_IDENTIFIERS)
 	{
 		auto arg = tables.get<Identifier>(tok);
-		if (arg.type == TYPE_INT) str += "\tfild\t" + tables.getStr(tok) + "\n";
-		if (arg.type == TYPE_FLOAT) str += "\tfld\t" + tables.getStr(tok) + "\n";
+		if (arg.type == TYPE_INT) str += "\tfild\t" + DelPoint(tables.getStr(tok)) + "\n";
+		if (arg.type == TYPE_FLOAT) str += "\tfld\t" + DelPoint(tables.getStr(tok)) + "\n";
 	}
 	if (tok.table == TABLE_CONSTANTS)
 	{
 		auto arg = tables.get<Constant>(tok);
-		if (arg.type == TYPE_INT) str += "\tfild\t" + tables.getStr(tok) + "\n";
-		if (arg.type == TYPE_FLOAT) str += "\tfld\t" + tables.getStr(tok) + "\n";
+		if (arg.type == TYPE_INT)
+		{
+			str += "\tmov \ttmp_var, " + tables.getStr(tok) + "\n";
+			str += "\tfild \ttmp_var\n";
+		}
+		if (arg.type == TYPE_FLOAT) str += "\tfld \tconst" + DelPoint(tables.getStr(tok)) + "\n";
 	}
 	return str;
 }
@@ -175,11 +206,11 @@ std::string CodeGen::EndCode()
 }
 
 //-----------------------------------------------------------------------------
-string Code_gen(const std::vector<std::vector<Token>>& postfix, Tables& tables, std::vector<std::string>& ident){
+string Code_gen(const std::vector<std::vector<Token>>& postfix, Tables& tables, std::vector<std::string>& ident, std::vector<std::string>& cons){
 	CodeGen gen(tables);
 
 	std::string code = gen.StartCode();
-	code += gen.DataCode(ident);
+	code += gen.DataCode(ident, cons);
 
 	for (auto& i : postfix)
 		code += gen.CreateCode(i);
