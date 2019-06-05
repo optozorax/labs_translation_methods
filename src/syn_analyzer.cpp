@@ -8,7 +8,7 @@
 class SynTable
 {
 public:
-	SynTable(const std::string& path, Tables& tables, std::vector<std::string>& identif);		//Конструктор
+	SynTable(const std::string& path, Tables& tables, std::vector<std::string>& identif, std::vector<std::string>& con);		//Конструктор
 
 	bool /*std::optional<vector<Token>>*/ Next(Token);					//Обработака следующего токена
 	std::vector<Token>	ret;
@@ -40,6 +40,7 @@ private:
 	Token leftexper;					//Токел левой стороны выражения
 	Type type;							//Тип следующих функций
 	std::vector<std::string>& ident;
+	std::vector<std::string>& cons;
 	Tables& tables;						//Хэш таблицы
 	int state;							//Текущее состояние
 	std::vector<int> stack_state;		//Стек следующих состояний
@@ -67,7 +68,7 @@ private:
 //=============================================================================
 //=============================================================================
 //Считываем таблицу и задаем начальные значения
-SynTable::SynTable(const std::string& path, Tables& tables, std::vector<std::string>& identif) : tables(tables), ident(identif) {
+SynTable::SynTable(const std::string& path, Tables& tables, std::vector<std::string>& identif, std::vector<std::string>& con) : tables(tables), ident(identif), cons(con) {
 	ifstream itable(path);
 
 	if (!itable) Error("Error open file " + path);
@@ -269,6 +270,7 @@ bool/*std::optional<vector<Token>>*/ SynTable::Next(Token token)
 			if (type == TYPE_INT && b == TYPE_FLOAT) Warning("loss of accuracy is possible");
 			arg.type = b;
 			ret.push_back(token);
+			cons.push_back(tables.getStr(token));
 		}
 			break;
 		case 90: // (
@@ -386,10 +388,10 @@ bool/*std::optional<vector<Token>>*/ SynTable::Next(Token token)
 }
 
 //-----------------------------------------------------------------------------
-std::vector<std::vector<Token>> Analyzer(const std::vector<Token>& tokens, Tables& tables, string path, std::vector<std::string> &identif){
+std::vector<std::vector<Token>> Analyzer(const std::vector<Token>& tokens, Tables& tables, string path, std::vector<std::string> &identif, std::vector<std::string>& cons){
 	std::vector<std::vector<Token>> result;
 	
-	SynTable syn_table(path, tables, identif);
+	SynTable syn_table(path, tables, identif, cons);
 
 	for (auto i : tokens)
 	{
