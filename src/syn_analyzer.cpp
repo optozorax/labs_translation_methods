@@ -8,7 +8,7 @@
 class SynTable
 {
 public:
-	SynTable(const std::string& path, Tables& tables);		//Конструктор
+	SynTable(const std::string& path, Tables& tables, std::vector<std::string>& identif);		//Конструктор
 
 	bool /*std::optional<vector<Token>>*/ Next(Token);					//Обработака следующего токена
 	std::vector<Token>	ret;
@@ -39,6 +39,7 @@ private:
 	Token struc;
 	Token leftexper;					//Токел левой стороны выражения
 	Type type;							//Тип следующих функций
+	std::vector<std::string>& ident;
 	Tables& tables;						//Хэш таблицы
 	int state;							//Текущее состояние
 	std::vector<int> stack_state;		//Стек следующих состояний
@@ -66,7 +67,7 @@ private:
 //=============================================================================
 //=============================================================================
 //Считываем таблицу и задаем начальные значения
-SynTable::SynTable(const std::string& path, Tables& tables) : tables(tables) {
+SynTable::SynTable(const std::string& path, Tables& tables, std::vector<std::string>& identif) : tables(tables), ident(identif) {
 	ifstream itable(path);
 
 	if (!itable) Error("Error open file " + path);
@@ -192,6 +193,13 @@ bool/*std::optional<vector<Token>>*/ SynTable::Next(Token token)
 						auto& argtok = tables.get<Identifier>(tok);
 						argtok.type = i.type;
 					}
+					else
+					{
+						tables.add(tables.getStr(token) + "." + i.name, TABLE_IDENTIFIERS);
+						tok = tables.find(tables.getStr(token) + "." + i.name);
+						auto& argtok = tables.get<Identifier>(tok);
+						argtok.type = i.type;
+					}
 				}
 				arg.nameStruct = nameStr;
 			}
@@ -211,6 +219,32 @@ bool/*std::optional<vector<Token>>*/ SynTable::Next(Token token)
 		case 73:	// =
 		{
 			auto& arg = tables.get<Identifier>(leftexper);
+			if (type == TYPE_STRUCT)	//Если тип структура
+			{
+				auto& argStruc = tables.get<Structure>(tables.find(arg.nameStruct));	//То всем полям, которые найдем в таблице
+				for (auto& i : argStruc.elems)					//Задаем тип из структуры
+				{
+					auto name = tables.getStr(leftexper) + "." + i.name;
+					auto tok = tables.find(name);
+					ident.push_back(name);
+					if (tok)
+					{
+						auto& argtok = tables.get<Identifier>(tok);
+						argtok.isInitialized = true;
+					}
+					else
+					{
+						tables.add(name, TABLE_IDENTIFIERS);
+						tok = tables.find(name);
+						auto& argtok = tables.get<Identifier>(tok);
+						argtok.isInitialized = true;
+						argtok.type = i.type;
+					}
+				}
+				arg.nameStruct = nameStr;
+			}
+			else
+				if (!arg.isInitialized && arg.type) ident.push_back(tables.getStr(leftexper));
 			arg.isInitialized = true;
 			treestart = true;
 			oper.push(token);
@@ -352,10 +386,10 @@ bool/*std::optional<vector<Token>>*/ SynTable::Next(Token token)
 }
 
 //-----------------------------------------------------------------------------
-std::vector<std::vector<Token>> Analyzer(const std::vector<Token>& tokens, Tables& tables, string path){
+std::vector<std::vector<Token>> Analyzer(const std::vector<Token>& tokens, Tables& tables, string path, std::vector<std::string> &identif){
 	std::vector<std::vector<Token>> result;
 	
-	SynTable syn_table(path, tables);
+	SynTable syn_table(path, tables, identif);
 
 	for (auto i : tokens)
 	{
